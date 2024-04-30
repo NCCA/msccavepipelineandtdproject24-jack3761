@@ -8,9 +8,12 @@ The aim for this project is to produce a pipeline tool that will allow a simplif
 
 ### This plan is due to change throughout the project as further developments are made
 
-- Write a python script with a GUI to read in the individual animations from a USD stage.
-- Automate the process of assigning these into level sequences that can be accessed throughout the project.
-- Ensure that these USD animation references remain within the project upon restart.
+* Write a python script with a GUI to read in the individual animations from a USD stage.
+- GUI should be accessible from a button, current idea is to add unreal startup script to add the button to a built in menu, and that button starts the GUI.
+- Either that or build it in with C++
+* Automate the process of assigning these into level sequences that can be accessed throughout the project.
+- Need to look into whether the USD Stage import area is best for this, or for the user to provide USD file path and use that independently.
+* Ensure that these USD animation references remain within the project upon restart.
 
 Throughout the development of the Unreal side of the pipeline, I will be using the regular exporter from Maya. In doing this, I hope to learn about any areas in this process that may be made quicker or automated with an additionally script, and from there I will write a script and GUI for the Maya USD export. Currently, I predict that this will be a simplified export menu that has minimal input and only writes the necessary parts of the scene required for the UE import.
 
