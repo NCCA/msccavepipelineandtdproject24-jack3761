@@ -30,3 +30,5 @@ Helpful links throughout this project are listed below
 - [Python for Unreal Engine](https://www.youtube.com/watch?v=OwZxr1SMluY&list=PLA5eKtL_PFiMJwn80t4WWlrAdOn-fE3X6&pp=iAQB)
 - [Unreal Engine 5 Python Automation Course](https://www.youtube.com/watch?v=mmiV0qKMTio&list=PLKgYiIAqG99cwlb4Y2Pu-cSb_Vw14-t0c&pp=iAQB)
 - [Universal Scene Description](https://openusd.org/release/index.html)
+- [Unreal Animation Import Pipeline](https://www.youtube.com/watch?v=XvnLMpvGZ34&ab_channel=TonyBowren)
+- [Adding script to UE menu](https://medium.com/@TechArtCorner/executing-python-scripts-from-unreal-engine-5-menus-90b917981020)
