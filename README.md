@@ -32,3 +32,7 @@ Helpful links throughout this project are listed below
 - [Universal Scene Description](https://openusd.org/release/index.html)
 - [Unreal Animation Import Pipeline](https://www.youtube.com/watch?v=XvnLMpvGZ34&ab_channel=TonyBowren)
 - [Adding script to UE menu](https://medium.com/@TechArtCorner/executing-python-scripts-from-unreal-engine-5-menus-90b917981020)
+- [UE Python sequencer cookbook](https://dev.epicgames.com/community/learning/knowledge-base/0qK6/unreal-engine-ue4-sequencer-python-cookbook)
+- [UE4 Knowledgebase for sequencer scripting](https://forums.unrealengine.com/t/knowledge-base-ue4-sequencer-python-cookbook/265097/10)
+- [Animated prim attributes forum](https://forums.developer.nvidia.com/t/get-animated-prim-attributes-per-frame-time/222735/4)
+- [Add USD Reference](https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/references-payloads/add-reference.html)
