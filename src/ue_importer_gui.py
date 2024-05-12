@@ -1,3 +1,9 @@
+"""
+GUI class to detect USD prims with animation and individually import them to Unreal Engine 5 as USDStageActors
+
+"""
+
+
 
 import sys
 # change to suitable path or change environment variables
@@ -15,10 +21,22 @@ ELL = unreal.EditorLevelLibrary()
 EAL = unreal.EditorAssetLibrary()
 
 class USDStageHandler:
+    """ Handler class to store the current USD Stage object"""
     stage = None
 
     @classmethod
     def open_stage(cls, file_path):
+        """class method to open and store current USD Stage
+
+        Parameters
+        -----------
+        file_path : str
+
+            string address for the location of the USD file to be loaded
+
+
+        """
+
         valid_extensions = [".usd", ".usda", ".usdc", ".usdz"]
 
         if not any(file_path.endswith(ext) for ext in valid_extensions):
@@ -31,8 +49,21 @@ class USDStageHandler:
 
 
 class USDAnimImportDialog(QtWidgets.QDialog):    
+    """
+    A dialog for importing USD animations
 
+    Attributes:
+        file_path_edit (QLineEdit): Input field for file path.
+        prim_list_widget (QListWidget): List widget for displaying prims.
+        prim_strings (dict): Dictionary to store path strings and Sdf.Path().
+        use_default_checkbox (QCheckBox): Checkbox for default export directory.
+        export_dir_edit (QLineEdit): Input field for export directory.
+        export_button (QPushButton): Button for exporting selected prims.
+    """
     def __init__(self, parent=None):
+
+        """ Initialise the USDAnimImportDialog """
+        
         super().__init__()
 
         # input file section
@@ -67,7 +98,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.export_dir_layout.addWidget(self.select_export_dir_button)
 
         self.export_button = QPushButton("Export Selected Prims")
-        self.export_button.clicked.connect(self.export_options())
+        self.export_button.clicked.connect(self.export_options)
 
         # set layout
         layout = QVBoxLayout()
@@ -79,13 +110,35 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         layout.addWidget(self.export_button)
         self.setLayout(layout)
 
-    def browse_file(self):
+    def browse_file(self) -> None:
+        """
+        Open a file dialog to browse and select a USD file
+
+        The selected file path is displayed in the file path edit field,
+        and the prims list is populated based on the selected file.
+
+        Returns:
+            None
+        """
+
         file_path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "USD Files (*.usd*)")
         if file_path:
             self.file_path_edit.setText(file_path)
             self.populate_prims_list(file_path)
 
-    def populate_prims_list(self, file_path: str):
+    def populate_prims_list(self, file_path: str) -> None:
+        """
+        Populate the prims list widget with animation prims from the specified USD file.
+
+        Parameters
+        ----------
+            file_path : str             
+                The path to the USD file.
+
+        Returns
+        -------
+            None
+        """
         self.prim_list_widget.clear()
 
         try:
@@ -95,6 +148,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             return
         
         stage = USDStageHandler.stage
+
         anim_prims = self.usd_anim_extraction(stage)
         
         for prim_path in anim_prims:
@@ -103,8 +157,23 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
         print(self.prim_strings)
 
-
     def usd_anim_extraction(self, stage: Usd.Stage) -> list[Sdf.Path]:
+        """
+        Extract the USD Prim paths that contain time samples within any of their attributes
+
+        Parameters
+        ----------
+
+        stage : Usd.Stage
+            the USD stage to extract from
+
+        Returns
+        -------
+
+        list
+            prim paths of animated objects
+        
+        """
         anim_obj_paths = []
         prims = []
 
@@ -118,6 +187,8 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         return anim_obj_paths
     
     def toggle_export_dir_edit(self):
+        """ Toggle whether to use default export directory or chosen"""
+
         state = self.use_default_checkbox.isChecked()
         if state == 0:  
             self.export_dir_edit.setEnabled(True)
@@ -125,28 +196,60 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             self.export_dir_edit.setEnabled(False)
 
     def select_export_directory(self):
+        """ Opens a file dialog to browse and select directory to export animated prim files to"""
+
         export_dir = QFileDialog.getExistingDirectory(self, "Select export Directory")
         if export_dir:
             self.export_dir_edit.setText(export_dir)
 
     def export_options(self):
-        # file path used to add reference
+        """
+        Called from the button click event to set up export of selected animated prims
+        """
+        print("button pressed")
         file_path = self.file_path_edit.text()
 
+        stage = USDStageHandler.stage        
 
-        prims = []
         selected_paths = self.prim_list_widget.selectedItems()
-        print(type(selected_paths))
-        print(selected_paths)
+
+        anim_obj_paths = []
+
+        for path in selected_paths:
+            anim_obj_paths.append(self.prim_strings[path.text()])
+            print("prim: " + str(self.prim_strings[path.text()]))
+
+        print("paths:")
+        print(anim_obj_paths)
         
 
         if not self.use_default_checkbox.isChecked():
             target_directory = self.export_dir_edit.text()
         else:
             target_directory = ""
+
+        self.export_anim_prims(file_path, stage, anim_obj_paths, target_directory)
         
 
     def export_anim_prims(self, file_path: str, stage: Usd.Stage, anim_obj_paths: list[Sdf.Path], target_directory:str ="") -> None:
+        """
+        Export animation prims to USD files
+
+        Parameters
+        ----------
+            file_path : str 
+                The original USD file path.
+            stage : Usd.Stage
+                The USD stage containing animation prims
+            anim_obj_paths : list[Sdf.Path]
+                List of Sdf.Path objects representing animation prims
+            target_directory : str, optional
+                The target directory for exporting USD files. Defaults to ""
+
+        Returns
+        -------
+            None
+        """
         for prim_path in anim_obj_paths :
             # create temporary stage with anim prim path as default
             temp_stage = Usd.Stage.CreateInMemory()
@@ -163,7 +266,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             # temp_stage.SetUpAxis(stage.GetUpAxis())
 
             ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path("/default/ref_prim")).GetPrim()
-            add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
+            self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
 
             # usda = temp_stage.GetRootLayer().ExportToString()
             # print(usda)
@@ -178,25 +281,32 @@ class USDAnimImportDialog(QtWidgets.QDialog):
                 temp_stage.Export(str(target_directory))
                 print("Creating .usda at: " + str(target_directory))
 
-                create_usd_stage_actor(file_path=str(target_directory))
+                self.create_usd_stage_actor(file_path=str(target_directory))
 
             else :
                 temp_stage.Export(str(target_directory) + stage.GetPrimAtPath(prim_path).GetName() + ".usda")
 
             target_directory = ""
 
-        def add_ext_reference(self, prim: Usd.Prim, ref_asset_path: str, ref_target_path: Sdf.Path) -> None:
+
+        
+    def add_ext_reference(self, prim: Usd.Prim, ref_asset_path: str, ref_target_path: Sdf.Path) -> None:
+            """
+            Code from NVidia Omniverse dev guide to add USD reference prim to a stage
+
+            https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/references-payloads/add-reference.html
+            """
             references: Usd.References = prim.GetReferences()
             references.AddReference(
                 assetPath=ref_asset_path,
                 primPath=ref_target_path # OPTIONAL: Reference a specific target prim. Otherwise, uses the referenced layer's defaultPrim.
             )
-
-        def create_usd_stage_actor(self, file_path: str) -> None:
-            usd_stage_actor = ELL.spawn_actor_from_class(unreal.UsdStageActor , unreal.Vector())
-            usd_stage_actor.set_editor_property("root_layer",unreal.FilePath( file_path ))
-            
-            return usd_stage_actor
+        
+    def create_usd_stage_actor(self, file_path: str) -> None:
+        usd_stage_actor = ELL.spawn_actor_from_class(unreal.UsdStageActor , unreal.Vector())
+        usd_stage_actor.set_editor_property("root_layer",unreal.FilePath( file_path ))
+        
+        return usd_stage_actor
 
 
 
