@@ -97,15 +97,15 @@ if __name__ == "__main__":
 
 
 #TODO
-# add material to generated USD's, currently nothing shows
-# adjust usd export/import to go into unreal project directory
-# add unreal scripting to load in each of the generated usda files as usdstageactors
-# fingers crossed they have their own level sequences
 # potentially see if the files we generate can just show a reference, rather than create the whole thing
 ## could just form a string for the file
 # Add automated access to the usdstageactor level sequences
 # currently doesn't seem like anything on the maya side
 # Add all GUI functionality
+# improve usd authoring to detect correct prim types, explore the different layers of prims 
+#       and use correct names in the authored file
+
 
 # add comments, doc strings and type hints (should do while working)
 # write tests - also should do while working
+# figure out and write up deployment, go through the process on a new machine
