@@ -3,8 +3,6 @@ GUI class to detect USD prims with animation and individually import them to Unr
 
 """
 
-
-
 import sys
 # change to suitable path or change environment variables
 # sys.path.append('c:\\users\\jack3\\appdata\\local\\programs\\python\\python39\\lib\\site-packages')
@@ -71,9 +69,25 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.browse_button = QPushButton("Browse")
         self.browse_button.clicked.connect(self.browse_file)
 
-        file_input_layout = QHBoxLayout()
-        file_input_layout.addWidget(self.file_path_edit)
-        file_input_layout.addWidget(self.browse_button)
+        self.file_input_layout = QHBoxLayout()
+        self.file_input_layout.addWidget(self.file_path_edit)
+        self.file_input_layout.addWidget(self.browse_button)
+
+        self.prim_type_combo = QComboBox()
+        self.prim_type_combo.addItem("Mesh")
+        self.prim_type_combo.addItem("Camera")
+        self.prim_type_combo.addItem("XForm")
+
+        self.is_animated_checkbox = QCheckBox("Animated")
+        self.is_animated_checkbox.setChecked(False)
+
+        self.reload_button = QPushButton("Reload")
+        self.reload_button.clicked.connect(self.reload_prims_list)
+
+        self.prim_type_layout = QHBoxLayout()
+        self.prim_type_layout.addWidget(self.prim_type_combo)
+        self.prim_type_layout.addWidget(self.is_animated_checkbox)
+        self.prim_type_layout.addWidget(self.reload_button)
 
         # list widget for prims
         self.prim_list_widget = QListWidget()
@@ -91,6 +105,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.export_dir_edit = QLineEdit()
         self.export_dir_edit.setEnabled(False)  # disabled by default
         self.select_export_dir_button = QPushButton("Select export directory")
+        self.select_export_dir_button.setEnabled(False)
         self.select_export_dir_button.clicked.connect(self.select_export_directory)
 
         self.export_dir_layout = QHBoxLayout()
@@ -102,7 +117,8 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
         # set layout
         layout = QVBoxLayout()
-        layout.addLayout(file_input_layout)
+        layout.addLayout(self.file_input_layout)
+        layout.addLayout(self.prim_type_layout)
         layout.addWidget(self.prim_list_widget)
         layout.addWidget(self.use_default_checkbox)
         layout.addWidget(self.export_dir_edit)
@@ -125,6 +141,11 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         if file_path:
             self.file_path_edit.setText(file_path)
             self.populate_prims_list(file_path)
+    
+    def reload_prims_list(self):
+        """ Calls populate_prims_list on button press"""
+        file_path = self.file_path_edit.text()
+        self.populate_prims_list(file_path)
 
     def populate_prims_list(self, file_path: str) -> None:
         """
@@ -149,15 +170,17 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         
         stage = USDStageHandler.stage
 
-        anim_prims = self.usd_anim_extraction(stage)
+        mesh_type = self.prim_type_combo.currentText()
+        is_animated = self.is_animated_checkbox.isChecked()
+
+        prims = self.usd_prim_extraction(stage, mesh_type, is_animated)
         
-        for prim_path in anim_prims:
+        for prim_path in prims:
             self.prim_list_widget.addItem(str(prim_path))
             self.prim_strings[str(prim_path)] = prim_path
 
-        print(self.prim_strings)
 
-    def usd_anim_extraction(self, stage: Usd.Stage) -> list[Sdf.Path]:
+    def usd_prim_extraction(self, stage: Usd.Stage, mesh_type: str, is_animated: bool) -> list[Sdf.Path]:
         """
         Extract the USD Prim paths that contain time samples within any of their attributes
 
@@ -174,17 +197,25 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             prim paths of animated objects
         
         """
-        anim_obj_paths = []
-        prims = []
+        prim_paths = []
 
-        for prim in stage.Traverse():
-            prims.append(prim.GetPath())
-            for attr in prim.GetAttributes():
-                if attr.GetNumTimeSamples() > 0:
-                    anim_obj_paths.append(prim.GetPath())
-                    break
+        if mesh_type == "Mesh":
+            prims = self.find_prims_by_type(stage, UsdGeom.Mesh)
+        elif mesh_type == "Camera":
+            prims = self.find_prims_by_type(stage, UsdGeom.Camera)
+        else:
+            prims = self.find_prims_by_type(stage, UsdGeom.Xform)
 
-        return anim_obj_paths
+        for prim in prims:
+            if is_animated:
+                for attr in prim.GetAttributes():
+                    if attr.GetNumTimeSamples() > 0:
+                        prim_paths.append(prim.GetPath())
+                        break
+            else:
+                prim_paths.append(prim.GetPath())
+
+        return prim_paths
     
     def toggle_export_dir_edit(self):
         """ Toggle whether to use default export directory or chosen"""
@@ -192,8 +223,11 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         state = self.use_default_checkbox.isChecked()
         if state == 0:  
             self.export_dir_edit.setEnabled(True)
+            self.select_export_dir_button.setEnabled(True)
         else: 
             self.export_dir_edit.setEnabled(False)
+            self.select_export_dir_button.setEnabled(False)
+
 
     def select_export_directory(self):
         """ Opens a file dialog to browse and select directory to export animated prim files to"""
@@ -206,7 +240,6 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         """
         Called from the button click event to set up export of selected animated prims
         """
-        print("button pressed")
         file_path = self.file_path_edit.text()
 
         stage = USDStageHandler.stage        
@@ -217,10 +250,6 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
         for path in selected_paths:
             anim_obj_paths.append(self.prim_strings[path.text()])
-            print("prim: " + str(self.prim_strings[path.text()]))
-
-        print("paths:")
-        print(anim_obj_paths)
         
 
         if not self.use_default_checkbox.isChecked():
@@ -262,29 +291,28 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             temp_stage.SetEndTimeCode(stage.GetEndTimeCode())
             temp_stage.SetTimeCodesPerSecond(stage.GetTimeCodesPerSecond())
             temp_stage.SetFramesPerSecond(stage.GetFramesPerSecond())
+
             # temp_stage.SetMetersPerUnit(stage.GetMetersPerUnit()) - these functions don't exist but might be important to find and add
             # temp_stage.SetUpAxis(stage.GetUpAxis())
 
             ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path("/default/ref_prim")).GetPrim()
             self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
 
-            # usda = temp_stage.GetRootLayer().ExportToString()
-            # print(usda)
+            prim_name = stage.GetPrimAtPath(prim_path).GetName()
 
             
             if target_directory == "":
                 project_path = Path(unreal.Paths.get_project_file_path()).parent
-                target_directory = project_path / "Content" / "usd_exports" / stage.GetPrimAtPath(prim_path).GetName()
-                target_directory = target_directory.with_suffix(".usda")
-
-
-                temp_stage.Export(str(target_directory))
-                print("Creating .usda at: " + str(target_directory))
-
-                self.create_usd_stage_actor(file_path=str(target_directory))
-
+                target_directory = project_path / "Content" / "usd_exports" / prim_name
             else :
-                temp_stage.Export(str(target_directory) + stage.GetPrimAtPath(prim_path).GetName() + ".usda")
+                target_directory = Path(target_directory) / prim_name
+
+            target_directory = target_directory.with_suffix(".usda")
+
+            temp_stage.Export(str(target_directory))
+            print("Creating .usda at: " + str(target_directory))
+
+            self.create_usd_stage_actor(str(target_directory), prim_name)
 
             target_directory = ""
 
@@ -301,23 +329,34 @@ class USDAnimImportDialog(QtWidgets.QDialog):
                 assetPath=ref_asset_path,
                 primPath=ref_target_path # OPTIONAL: Reference a specific target prim. Otherwise, uses the referenced layer's defaultPrim.
             )
+
+    def find_prims_by_type(self, stage: Usd.Stage, prim_type: type[Usd.Typed]) -> list[Usd.Prim]:
+        """
+            Code from NVidia Omniverse dev guide to find prims of a given type
+
+            https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/hierarchy-traversal/find-prims-by-type.html
+        """
+        found_prims = [x for x in stage.Traverse() if x.IsA(prim_type)]
+        return found_prims
         
-    def create_usd_stage_actor(self, file_path: str) -> None:
+    def create_usd_stage_actor(self, file_path: str, prim_name: str) -> None:
         usd_stage_actor = ELL.spawn_actor_from_class(unreal.UsdStageActor , unreal.Vector())
         usd_stage_actor.set_editor_property("root_layer",unreal.FilePath( file_path ))
+        usd_stage_actor.set_actor_label(prim_name + "_usd")
         
         return usd_stage_actor
 
 
+# if __name__ == "__main__":
 
+if not QtWidgets.QApplication.instance():
+    app = QtWidgets.QApplication([])
+dialog = USDAnimImportDialog()
+dialog.show()
 
-if __name__ == "__main__":
+unreal.parent_external_window_to_slate(dialog.winId())
+    # sys.exit(dialog.exec_())
 
-    if not QtWidgets.QApplication.instance():
-        app = QtWidgets.QApplication([])
-    dialog = USDAnimImportDialog()
-    dialog.show()
-    sys.exit(dialog.exec_())
 
 
 

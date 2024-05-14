@@ -37,3 +37,4 @@ Helpful links throughout this project are listed below
 - [Animated prim attributes forum](https://forums.developer.nvidia.com/t/get-animated-prim-attributes-per-frame-time/222735/4)
 - [Add USD Reference](https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/references-payloads/add-reference.html)
 - [UE Set up pyside](https://www.petfactory.se/notes/ue5-python-pyside2/)
+- [Creating UE menus in python](https://forums.unrealengine.com/t/making-menus-in-py/144498/7)

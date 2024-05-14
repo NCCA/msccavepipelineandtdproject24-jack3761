@@ -64,8 +64,10 @@ class USDSequenceDetectorDialog(QtWidgets.QDialog):
         unreal.LevelSequenceEditorBlueprintLibrary.play()
 
 
-if __name__ == "__main__":
-    if not QtWidgets.QApplication.instance():
-        app = QtWidgets.QApplication([])
-    dialog = USDSequenceDetectorDialog()
-    dialog.show()
+if not QtWidgets.QApplication.instance():
+    app = QtWidgets.QApplication([])
+dialog = USDSequenceDetectorDialog()
+dialog.show()
+
+unreal.parent_external_window_to_slate(dialog.winId())
+
