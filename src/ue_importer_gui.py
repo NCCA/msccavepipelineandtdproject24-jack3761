@@ -70,6 +70,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.browse_button.clicked.connect(self.browse_file)
 
         self.file_input_layout = QHBoxLayout()
+        self.file_input_layout.addWidget(QLabel("File Path:"))
         self.file_input_layout.addWidget(self.file_path_edit)
         self.file_input_layout.addWidget(self.browse_button)
 
@@ -101,7 +102,25 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.use_default_checkbox.setChecked(True)
         self.use_default_checkbox.stateChanged.connect(self.toggle_export_dir_edit)
 
+        self.individual_checkbox = QCheckBox("Export individually")
+        self.individual_checkbox.setChecked(True)
+        self.individual_checkbox.stateChanged.connect(self.toggle_individual_export)
+
+
+        self.file_name_edit = QLineEdit()
+        self.file_name_edit.setEnabled(False)
+
+        self.export_checkboxes = QHBoxLayout()
+        self.export_checkboxes.addWidget(self.use_default_checkbox)
+        self.export_checkboxes.addWidget(self.individual_checkbox)
+        self.export_checkboxes.addWidget(QLabel("File Name:"))
+        self.export_checkboxes.addWidget(self.file_name_edit)
+
         # create export directory selection section
+        self.export_type_combo = QComboBox()
+        self.export_type_combo.addItem("Mesh")
+        self.export_type_combo.addItem("Camera")
+        self.export_type_combo.addItem("XForm")
         self.export_dir_edit = QLineEdit()
         self.export_dir_edit.setEnabled(False)  # disabled by default
         self.select_export_dir_button = QPushButton("Select export directory")
@@ -109,6 +128,9 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.select_export_dir_button.clicked.connect(self.select_export_directory)
 
         self.export_dir_layout = QHBoxLayout()
+        self.export_dir_layout.addWidget(QLabel("Export Type:"))
+        self.export_dir_layout.addWidget(self.export_type_combo)
+        self.export_dir_layout.addWidget(QLabel("Export Directory:"))
         self.export_dir_layout.addWidget(self.export_dir_edit)
         self.export_dir_layout.addWidget(self.select_export_dir_button)
 
@@ -116,12 +138,13 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.export_button.clicked.connect(self.export_options)
 
         # set layout
-        layout = QVBoxLayout()
+        layout = QVBoxLayout()        
         layout.addLayout(self.file_input_layout)
+        layout.addWidget(QLabel("Prim Type:"))
         layout.addLayout(self.prim_type_layout)
+        layout.addWidget(QLabel("Select imported prims:"))        
         layout.addWidget(self.prim_list_widget)
-        layout.addWidget(self.use_default_checkbox)
-        layout.addWidget(self.export_dir_edit)
+        layout.addLayout(self.export_checkboxes)
         layout.addLayout(self.export_dir_layout)
         layout.addWidget(self.export_button)
         self.setLayout(layout)
@@ -146,6 +169,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         """ Calls populate_prims_list on button press"""
         file_path = self.file_path_edit.text()
         self.populate_prims_list(file_path)
+        self.export_type_combo.setCurrentIndex(self.prim_type_combo.currentIndex())
 
     def populate_prims_list(self, file_path: str) -> None:
         """
@@ -227,6 +251,17 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         else: 
             self.export_dir_edit.setEnabled(False)
             self.select_export_dir_button.setEnabled(False)
+        
+        self.toggle_individual_export()
+
+    def toggle_individual_export(self):
+        """ Toggle whether to export individual prims or together"""
+        state = self.individual_checkbox.isChecked()
+        if state == 0:  
+            self.file_name_edit.setEnabled(True)
+        else: 
+            self.file_name_edit.setEnabled(False)
+
 
 
     def select_export_directory(self):
@@ -250,17 +285,24 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
         for path in selected_paths:
             anim_obj_paths.append(self.prim_strings[path.text()])
-        
+
+        export_type = self.export_type_combo.currentText()
+
+        export_individual = self.individual_checkbox.isChecked()
 
         if not self.use_default_checkbox.isChecked():
             target_directory = self.export_dir_edit.text()
         else:
             target_directory = ""
 
-        self.export_anim_prims(file_path, stage, anim_obj_paths, target_directory)
+        if export_individual:
+            self.export_anim_prims(file_path, stage, anim_obj_paths, export_type, export_individual, target_directory)
+        else:
+            file_name = self.file_name_edit.text()
+            self.export_anim_prims(file_path, stage, anim_obj_paths, export_type, export_individual, target_directory, file_name)
         
-
-    def export_anim_prims(self, file_path: str, stage: Usd.Stage, anim_obj_paths: list[Sdf.Path], target_directory:str ="") -> None:
+    # TODO refactor to remove repeated code
+    def export_anim_prims(self, file_path: str, stage: Usd.Stage, anim_obj_paths: list[Sdf.Path], export_type: str, export_individual: bool, target_directory:str ="", file_name: str="untitled") -> None:
         """
         Export animation prims to USD files
 
@@ -279,44 +321,86 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         -------
             None
         """
-        for prim_path in anim_obj_paths :
+        if export_individual:
+            for prim_path in anim_obj_paths :
+                # create temporary stage with anim prim path as default
+                temp_stage = Usd.Stage.CreateInMemory()
+                default_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path("/default"))
+                temp_stage.SetDefaultPrim(default_prim.GetPrim())
+
+                # set basic stage metadata
+
+                temp_stage.SetStartTimeCode(stage.GetStartTimeCode())
+                temp_stage.SetEndTimeCode(stage.GetEndTimeCode())
+                temp_stage.SetTimeCodesPerSecond(stage.GetTimeCodesPerSecond())
+                temp_stage.SetFramesPerSecond(stage.GetFramesPerSecond())
+                
+                prim_name = stage.GetPrimAtPath(prim_path).GetName()
+
+                new_path = "/default/" + prim_name
+
+                if export_type == "Mesh":
+                    ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+                elif export_type == "Camera":
+                    ref_prim = UsdGeom.Camera.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+                else:
+                    ref_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+
+                self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
+                
+                if target_directory == "":
+                    project_path = Path(unreal.Paths.get_project_file_path()).parent
+                    target_directory = project_path / "Content" / "usd_exports" / prim_name
+                else :
+                    target_directory = Path(target_directory) / prim_name
+
+                target_directory = target_directory.with_suffix(".usda")
+
+                temp_stage.Export(str(target_directory))
+                print("Creating .usda at: " + str(target_directory))
+
+                self.create_usd_stage_actor(str(target_directory), prim_name)
+
+                target_directory = ""
+        else:
             # create temporary stage with anim prim path as default
             temp_stage = Usd.Stage.CreateInMemory()
             default_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path("/default"))
             temp_stage.SetDefaultPrim(default_prim.GetPrim())
-
-            # set basic stage metadata
 
             temp_stage.SetStartTimeCode(stage.GetStartTimeCode())
             temp_stage.SetEndTimeCode(stage.GetEndTimeCode())
             temp_stage.SetTimeCodesPerSecond(stage.GetTimeCodesPerSecond())
             temp_stage.SetFramesPerSecond(stage.GetFramesPerSecond())
 
-            # temp_stage.SetMetersPerUnit(stage.GetMetersPerUnit()) - these functions don't exist but might be important to find and add
-            # temp_stage.SetUpAxis(stage.GetUpAxis())
+            for prim_path in anim_obj_paths :
+                prim_name = stage.GetPrimAtPath(prim_path).GetName()
 
-            ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path("/default/ref_prim")).GetPrim()
-            self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
+                new_path = "/default/" + prim_name
 
-            prim_name = stage.GetPrimAtPath(prim_path).GetName()
+                if export_type == "Mesh":
+                    ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+                elif export_type == "Camera":
+                    ref_prim = UsdGeom.Camera.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+                else:
+                    ref_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
 
+                self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
             
             if target_directory == "":
                 project_path = Path(unreal.Paths.get_project_file_path()).parent
-                target_directory = project_path / "Content" / "usd_exports" / prim_name
+                target_directory = project_path / "Content" / "usd_exports" / file_name
             else :
-                target_directory = Path(target_directory) / prim_name
+                target_directory = Path(target_directory) / file_name
 
             target_directory = target_directory.with_suffix(".usda")
 
             temp_stage.Export(str(target_directory))
             print("Creating .usda at: " + str(target_directory))
 
-            self.create_usd_stage_actor(str(target_directory), prim_name)
+            self.create_usd_stage_actor(str(target_directory), file_name)
 
             target_directory = ""
-
-
         
     def add_ext_reference(self, prim: Usd.Prim, ref_asset_path: str, ref_target_path: Sdf.Path) -> None:
             """

@@ -45,6 +45,9 @@ class USDSequenceDetectorDialog(QtWidgets.QDialog):
 
     def get_usd_stage_actors(self):
         """ Find all of the UsdStageActors within the level """
+        self.usd_stage_actor_list.clear()
+
+
         actors = ELL.get_all_level_actors()
         usd_actors = [actor for actor in actors if isinstance(actor, unreal.UsdStageActor)]
         for actor in usd_actors:
