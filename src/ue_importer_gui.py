@@ -323,85 +323,69 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         """
         if export_individual:
             for prim_path in anim_obj_paths :
-                # create temporary stage with anim prim path as default
-                temp_stage = Usd.Stage.CreateInMemory()
-                default_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path("/default"))
-                temp_stage.SetDefaultPrim(default_prim.GetPrim())
+                temp_stage = self.create_temp_stage(stage)
+                temp_stage = self.add_prim_to_stage(stage, temp_stage, file_path, export_type, prim_path)
+                file_name = stage.GetPrimAtPath(prim_path).GetName()
 
-                # set basic stage metadata
-
-                temp_stage.SetStartTimeCode(stage.GetStartTimeCode())
-                temp_stage.SetEndTimeCode(stage.GetEndTimeCode())
-                temp_stage.SetTimeCodesPerSecond(stage.GetTimeCodesPerSecond())
-                temp_stage.SetFramesPerSecond(stage.GetFramesPerSecond())
-                
-                prim_name = stage.GetPrimAtPath(prim_path).GetName()
-
-                new_path = "/default/" + prim_name
-
-                if export_type == "Mesh":
-                    ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
-                elif export_type == "Camera":
-                    ref_prim = UsdGeom.Camera.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
-                else:
-                    ref_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
-
-                self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
-                
-                if target_directory == "":
-                    project_path = Path(unreal.Paths.get_project_file_path()).parent
-                    target_directory = project_path / "Content" / "usd_exports" / prim_name
-                else :
-                    target_directory = Path(target_directory) / prim_name
-
-                target_directory = target_directory.with_suffix(".usda")
-
-                temp_stage.Export(str(target_directory))
-                print("Creating .usda at: " + str(target_directory))
-
-                self.create_usd_stage_actor(str(target_directory), prim_name)
+                self.export(temp_stage, target_directory, file_name)
 
                 target_directory = ""
         else:
-            # create temporary stage with anim prim path as default
-            temp_stage = Usd.Stage.CreateInMemory()
-            default_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path("/default"))
-            temp_stage.SetDefaultPrim(default_prim.GetPrim())
+            temp_stage = self.create_temp_stage(stage)
+            for prim_path in anim_obj_paths:
+                temp_stage = self.add_prim_to_stage(stage, temp_stage, file_path, export_type, prim_path)
 
-            temp_stage.SetStartTimeCode(stage.GetStartTimeCode())
-            temp_stage.SetEndTimeCode(stage.GetEndTimeCode())
-            temp_stage.SetTimeCodesPerSecond(stage.GetTimeCodesPerSecond())
-            temp_stage.SetFramesPerSecond(stage.GetFramesPerSecond())
-
-            for prim_path in anim_obj_paths :
-                prim_name = stage.GetPrimAtPath(prim_path).GetName()
-
-                new_path = "/default/" + prim_name
-
-                if export_type == "Mesh":
-                    ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
-                elif export_type == "Camera":
-                    ref_prim = UsdGeom.Camera.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
-                else:
-                    ref_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
-
-                self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
-            
-            if target_directory == "":
-                project_path = Path(unreal.Paths.get_project_file_path()).parent
-                target_directory = project_path / "Content" / "usd_exports" / file_name
-            else :
-                target_directory = Path(target_directory) / file_name
-
-            target_directory = target_directory.with_suffix(".usda")
-
-            temp_stage.Export(str(target_directory))
-            print("Creating .usda at: " + str(target_directory))
-
-            self.create_usd_stage_actor(str(target_directory), file_name)
+            self.export(temp_stage, target_directory, file_name)
 
             target_directory = ""
+
+    def create_temp_stage(self, stage: Usd.Stage):
+        # create temporary stage with anim prim path as default
+
+        temp_stage = Usd.Stage.CreateInMemory()
+        default_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path("/default"))
+        temp_stage.SetDefaultPrim(default_prim.GetPrim())
         
+        # set basic stage metadata
+
+        temp_stage.SetStartTimeCode(stage.GetStartTimeCode())
+        temp_stage.SetEndTimeCode(stage.GetEndTimeCode())
+        temp_stage.SetTimeCodesPerSecond(stage.GetTimeCodesPerSecond())
+        temp_stage.SetFramesPerSecond(stage.GetFramesPerSecond())
+
+        return temp_stage
+
+    def add_prim_to_stage(self, stage: Usd.Stage, temp_stage: Usd.Stage, file_path: str, export_type: str, prim_path: Sdf.Path):
+        prim_name = stage.GetPrimAtPath(prim_path).GetName()
+
+        new_path = "/default/" + prim_name
+
+        if export_type == "Mesh":
+            ref_prim = UsdGeom.Mesh.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+        elif export_type == "Camera":
+            ref_prim = UsdGeom.Camera.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+        else:
+            ref_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path(new_path)).GetPrim()
+
+        self.add_ext_reference(ref_prim, ref_asset_path=file_path, ref_target_path=prim_path)
+
+        return temp_stage
+
+    def export(self, temp_stage, target_directory, file_name):
+        if target_directory == "":
+            project_path = Path(unreal.Paths.get_project_file_path()).parent
+            target_directory = project_path / "Content" / "usd_exports" / file_name
+        else :
+            target_directory = Path(target_directory) / file_name
+
+        target_directory = target_directory.with_suffix(".usda")
+
+        temp_stage.Export(str(target_directory))
+        print("Creating .usda at: " + str(target_directory))
+
+        self.create_usd_stage_actor(str(target_directory ), file_name)
+
+    
     def add_ext_reference(self, prim: Usd.Prim, ref_asset_path: str, ref_target_path: Sdf.Path) -> None:
             """
             Code from NVidia Omniverse dev guide to add USD reference prim to a stage
@@ -431,7 +415,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         return usd_stage_actor
 
 
-# if __name__ == "__main__":
+# if __name__ == "__ue_importer_gui__":
 
 if not QtWidgets.QApplication.instance():
     app = QtWidgets.QApplication([])
@@ -439,23 +423,3 @@ dialog = USDAnimImportDialog()
 dialog.show()
 
 unreal.parent_external_window_to_slate(dialog.winId())
-    # sys.exit(dialog.exec_())
-
-
-
-
-
-
-#TODO
-# potentially see if the files we generate can just show a reference, rather than create the whole thing
-## could just form a string for the file
-# Add automated access to the usdstageactor level sequences
-# currently doesn't seem like anything on the maya side
-# Add all GUI functionality
-# improve usd authoring to detect correct prim types, explore the different layers of prims 
-#       and use correct names in the authored file
-
-
-# add comments, doc strings and type hints (should do while working)
-# write tests - also should do while working
-# figure out and write up deployment, go through the process on a new machine
