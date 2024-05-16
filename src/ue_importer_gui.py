@@ -301,7 +301,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             file_name = self.file_name_edit.text()
             self.export_anim_prims(file_path, stage, anim_obj_paths, export_type, export_individual, target_directory, file_name)
         
-    # TODO refactor to remove repeated code
+    # update doc string
     def export_anim_prims(self, file_path: str, stage: Usd.Stage, anim_obj_paths: list[Sdf.Path], export_type: str, export_individual: bool, target_directory:str ="", file_name: str="untitled") -> None:
         """
         Export animation prims to USD files
@@ -327,7 +327,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
                 temp_stage = self.add_prim_to_stage(stage, temp_stage, file_path, export_type, prim_path)
                 file_name = stage.GetPrimAtPath(prim_path).GetName()
 
-                self.export(temp_stage, target_directory, file_name)
+                self.export_stage(temp_stage, target_directory, file_name)
 
                 target_directory = ""
         else:
@@ -335,11 +335,11 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             for prim_path in anim_obj_paths:
                 temp_stage = self.add_prim_to_stage(stage, temp_stage, file_path, export_type, prim_path)
 
-            self.export(temp_stage, target_directory, file_name)
+            self.export_stage(temp_stage, target_directory, file_name)
 
             target_directory = ""
 
-    def create_temp_stage(self, stage: Usd.Stage):
+    def create_temp_stage(self, stage: Usd.Stage) -> Usd.Stage:
         # create temporary stage with anim prim path as default
 
         temp_stage = Usd.Stage.CreateInMemory()
@@ -355,7 +355,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
         return temp_stage
 
-    def add_prim_to_stage(self, stage: Usd.Stage, temp_stage: Usd.Stage, file_path: str, export_type: str, prim_path: Sdf.Path):
+    def add_prim_to_stage(self, stage: Usd.Stage, temp_stage: Usd.Stage, file_path: str, export_type: str, prim_path: Sdf.Path) -> Usd.Stage:
         prim_name = stage.GetPrimAtPath(prim_path).GetName()
 
         new_path = "/default/" + prim_name
@@ -371,7 +371,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
         return temp_stage
 
-    def export(self, temp_stage, target_directory, file_name):
+    def export_stage(self, temp_stage: Usd.Stage, target_directory: str, file_name: str):
         if target_directory == "":
             project_path = Path(unreal.Paths.get_project_file_path()).parent
             target_directory = project_path / "Content" / "usd_exports" / file_name
@@ -384,6 +384,8 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         print("Creating .usda at: " + str(target_directory))
 
         self.create_usd_stage_actor(str(target_directory ), file_name)
+
+        return target_directory
 
     
     def add_ext_reference(self, prim: Usd.Prim, ref_asset_path: str, ref_target_path: Sdf.Path) -> None:

@@ -1,9 +1,6 @@
 import unreal
 import sys
 
-# path = "C:\\Uni_Work\\Bournemouth\\PipelineTD\\msccavepipelineandtdproject24-jack3761\\src"
-# if path not in sys.path:
-#     sys.path.append(path)
 
 def main():
     print("Creating menus")
