@@ -1,3 +1,5 @@
+""" Script to set up unreal menus to access the importer and sequence player gui's"""
+
 import unreal
 import sys
 

@@ -1,29 +1,82 @@
-# Maya to Unreal Engine 5 USD pipeline for mesh and camera animation
+# USD animated prim extraction and import into Unreal Engine
 
-## Project aim
+## Project Overview
 
-The aim for this project is to produce a pipeline tool that will allow a simplified pipeline for exporting USD assets in Maya and using them in UE5. While there are already simple pipelines to achieve this, in this case the aim is to be able to quickly isolate the animation of mesh and camera objects so they can be accessed individually within a future project to expand this idea into a complete Unreal Engine plugin with more features. 
+This project aims to produce a tool that can take a USD scene, and import and access the mesh and camera animations within Unreal Engine 5 (UE5). This has shifted from the original idea from a specific Maya to UE5 tool using USD to a more abstract tool that takes in a general USD file. 
 
-## Current plan
+Using the USD Stage Import within UE gives us a USD Stage Actor that possesses a transient level sequence containing all of the animation data within the file. However, this level sequence only allows us to play the entire animation within the sequencer. While we can mute or isolate the tracks using the sequencer tools, we lack the freedom to play their seperate animations from the push of a button. 
 
-### This plan is due to change throughout the project as further developments are made
+This tool allows the user to import a USD file, select the desired prims to import based on their type and if they contain animation to then import individually, or as a group. This is achieved by exporting new usd files to a desired location or within the default location within the UE project, which are then accessed through created UsdStageActors.
 
-* Write a python script with a GUI to read in the individual animations from a USD stage.
-- GUI should be accessible from a button, current idea is to add unreal startup script to add the button to a built in menu, and that button starts the GUI.
-- Either that or build it in with C++
-* Automate the process of assigning these into level sequences that can be accessed throughout the project.
-- Need to look into whether the USD Stage import area is best for this, or for the user to provide USD file path and use that independently.
-* Ensure that these USD animation references remain within the project upon restart.
+## Installation
 
-Throughout the development of the Unreal side of the pipeline, I will be using the regular exporter from Maya. In doing this, I hope to learn about any areas in this process that may be made quicker or automated with an additionally script, and from there I will write a script and GUI for the Maya USD export. Currently, I predict that this will be a simplified export menu that has minimal input and only writes the necessary parts of the scene required for the UE import.
+This tool is built using [Python 3.9.7](https://www.python.org/downloads/release/python-397/) and [Unreal Engine 5.41](https://www.unrealengine.com/en-US/download) and intended for a Windows environment. The packages required can be found in the file requirements.txt and can be installed with `pip install -r requirements.txt`. 
 
-The outcome of this project should be scalable, so that it can grow to import more features from the Maya pipeline seemlessly, and to further develop into a full plugin.
+To install, first redirect do your desired directory. Then clone the repo with `git clone git@github.com:NCCA/msccavepipelineandtdproject24-jack3761.git` or alternatively download the zip file.
+
+In your Unreal project, you must first install the required plugins. Go do Edit -> Plugins and search for python. Then select the Python Editor Script Plugin and Sequencer Scripting. Following this, search for USD and select the USD Importer plugin.
+
+![Python Plugin](images/python_plugin.png)
+![USD Plugin](images/usd_plugin.png)
+
+Then we have to set up the startup script and the additional python paths. Redirect to Edit -> Project settings and search for python. Here, add a path to the startup script, and enter the path for the ue_menu.py file from the repository. This script sets up the menu to access the tools, and will be run each time this project is started. 
+
+Then, add two additional paths. One of them should lead to the \src directory of this repository to access the required modules. In the next one, you must put the path to your python site packages. This is where your python packages are installed, and is required to be able to access PySide2 to generate the GUI. If you are unsure of how to locate this, in a terminal run `python -c "import site; print(site.getsitepackages())"` and this will show you the path required to copy.
+
+![Python Path Setup](images/python_paths.png)
+
+After this, restart the project again, and a menu option will be present at the top of the screen. Here you can access the tools.
+
+![Tool menu](images/menu.png)
+
+## How to use
+
+With the installation complete, you can access the tools straight from the menu. In the menu there will be two options, USD Prim Importer and USD Animation Player.
+
+### USD Prim Importer
+
+![USD Prim Importer](images/prim_importer.png)
+
+- Select the USD file you would like to import
+- Choose which prim type you would like to filter to and click reload
+- Choose whether you would like only the animated prims or not and click reload
+- Xform is mainly used here for animation groups
+- Select all of the filtered prims you would like to export
+- Use the default export directory within the project folder or select your own
+- Choose whether to export individual USD files or a single one
+- Select the type the prims will be exported as
+- Click export
+
+This will export the new USD files to the specified location and automatically import them as named USDStageActors which can then be interacted with. The animations for these can then be directly accessed with the USD Animation Player. 
+
+### USD Animation Player
+
+![USD Animation Player](images/anim_player.png)
+
+- Select the USDStageActor you would like to play the animation of
+- Refresh to find changes to the USDStageActors in the scene
+
+This tool is used to easily access the animations of the USDStageActors from a button click rather than going to their object and finding their level sequence. The option to export multiple prims to the same file in the USD Prim Importer provides the option to choose to play multiple animations at the same time.
+
+These tools can optionally be run by using the python editor at the bottom and running `py "your\\path\\to\\src\\ue_importer_gui.py"` or `py "your\\path\\to\\src\\ue_usd_sequence.py"`
+
+## Testing
+
+There is a tests folder which contains the test script and accompanying files. This must be run in Unreal using the command `py "your\\path\\to\\tests\\test_ue_importer_gui.py"`
+
+## Evaluation and Future Work
+
+I have developed a tool that allows a user to enter a USD file and extract individual prims from it to import into Unreal Engine. The animations within these prims can then be directly accessed using the USD Animation Player to access the Level Sequences for each of the generated USDStageActors. Overall, I think that this project has worked successfully to import mesh, camera and xform prims into Unreal Engine individually and quickly.
+
+A known issue with this comes when importing to the default directory within the unreal project, as additional import dialogs show. These are ok and provide more access to the USD functionality, however there is a bug that makes it so none of the buttons can be pressed, and was only fixed by killing the task. Another area that could potentially cause problems is the naming of the areas, and the confusion it may cause. As the tool is both exporting USD Files and then importing them into Unreal. In the ended, I resulted to labelling most of it as exports, as during the development most of the code is working to export USD files and at the end imports them as USDStageActors. However I do acknlowledge that as the tools is labelled as an importer this may be an issue and in future work would be explored to find more suitable naming.
+
+This remains a basic tool that has lots of areas to expand on, largely with more focus to inclusions within the USD file such as materials and exploring the use of other prims as scenes increase in complexity. Additionally, further functionality could be implemented within other DCC's to produce a greater pipeline approach into Unreal.
 
 ---
 
 ## Research
 
-Helpful links throughout this project are listed below
+Reference links throughout this project are listed below
 
 - [Unreal Engine USD Description](https://dev.epicgames.com/documentation/en-us/unreal-engine/universal-scene-description-in-unreal-engine)
 - [Unreal Engine Python Description](https://dev.epicgames.com/documentation/en-us/unreal-engine/scripting-the-unreal-editor-using-python?application_version=5.3)

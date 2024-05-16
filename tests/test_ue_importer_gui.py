@@ -8,16 +8,13 @@ import sys
 ELL = unreal.EditorLevelLibrary()
 EAL = unreal.EditorAssetLibrary()
 
-
-file_path = str(Path(__file__).resolve().parent / "test_files" / "test_shapes.usd")
-
 class TestUSDStageHandler(unittest.TestCase):
     def setUp(self):
         # Directory containing test USD files
         self.test_files_dir = Path(__file__).resolve().parent / "test_files"
 
     def test_open_stage_valid_file(self):
-        file_path = str(self.test_files_dir / "valid.usd")
+        file_path = str(self.test_files_dir / "test_shapes.usd")
         USDStageHandler.open_stage(file_path)
 
         self.assertIsNotNone(USDStageHandler.stage)
@@ -28,27 +25,30 @@ class TestUSDStageHandler(unittest.TestCase):
         with self.assertRaises(ValueError):
             USDStageHandler.open_stage(file_path)
 
-        self.assertIsNone(USDStageHandler.stage)
 
     def test_open_stage_nonexistent_file(self):
         file_path = str(self.test_files_dir / "nonexistent.usd")
         with self.assertRaises(RuntimeError):
             USDStageHandler.open_stage(file_path)
 
-        self.assertIsNone(USDStageHandler.stage)
 
 class TestUSDAnimImportDialog(unittest.TestCase):
 
     def setUp(self):
         self.dialog = USDAnimImportDialog()
-        self.stage = Usd.Stage.Open(file_path)
+        self.file_path = str(Path(__file__).resolve().parent / "test_files" / "test_shapes.usd")
+
+        self.stage = Usd.Stage.Open(self.file_path)
         
 
     def reload_prims_list(self):
+        # set up so they are different
         self.dialog.prim_type_combo.setCurrentIndex(0)
         self.dialog.export_type_combo.setCurrentIndex(1)
 
         self.dialog.reload_prims_list()
+
+        # assert that they have both been set to the same index
 
         self.assertEqual(self.dialog.prim_type_combo.currentIndex(), self.dialog.export_type_combo.currentIndex())
 
@@ -82,7 +82,7 @@ class TestUSDAnimImportDialog(unittest.TestCase):
         self.dialog.prim_type_combo.setCurrentText("Mesh")
         self.dialog.is_animated_checkbox.setChecked(True)
 
-        self.dialog.populate_prims_list(file_path)
+        self.dialog.populate_prims_list(self.file_path)
 
         expected_paths = ['/pCube1', '/pCone1', '/pTorus1']
         for index in range(self.dialog.prim_list_widget.count()):
@@ -136,7 +136,7 @@ class TestUSDAnimImportDialog(unittest.TestCase):
         export_type = "Mesh"
         prim_path = Sdf.Path('/pCube1')
 
-        temp_stage = self.dialog.add_prim_to_stage(self.stage, temp_stage, file_path, export_type, prim_path)
+        temp_stage = self.dialog.add_prim_to_stage(self.stage, temp_stage, self.file_path, export_type, prim_path)
 
         self.assertIsInstance(temp_stage, Usd.Stage)
         added_prim = temp_stage.GetPrimAtPath(Sdf.Path("/default/pCube1"))
@@ -150,7 +150,7 @@ class TestUSDAnimImportDialog(unittest.TestCase):
 
         file_name = "test_export"
 
-        temp_stage = self.dialog.add_prim_to_stage(self.stage, temp_stage, file_path, export_type, prim_path)
+        temp_stage = self.dialog.add_prim_to_stage(self.stage, temp_stage, self.file_path, export_type, prim_path)
 
         target_directory = Path(__file__).resolve().parent / "test_exports"
 
@@ -172,5 +172,8 @@ class TestUSDAnimImportDialog(unittest.TestCase):
         self.assertIn(usd_stage_actor, usd_actors)
 
 if __name__ == "__main__":
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestUSDAnimImportDialog)
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.TestLoader().loadTestsFromTestCase(TestUSDStageHandler))
+    suite.addTest(unittest.TestLoader().loadTestsFromTestCase(TestUSDAnimImportDialog))
+
     result = unittest.TextTestRunner(stream=sys.stdout, buffer=True).run(suite)

@@ -3,17 +3,11 @@ GUI class to detect USD prims with animation and individually import them to Unr
 
 """
 
-import sys
-# change to suitable path or change environment variables
-# sys.path.append('c:\\users\\jack3\\appdata\\local\\programs\\python\\python39\\lib\\site-packages')
-
 import unreal
-import PySide2
 from pathlib import Path
 from pxr import Usd, UsdGeom, Sdf
-from PySide2 import QtCore, QtWidgets, QtGui
+from PySide2 import QtWidgets
 from PySide2.QtWidgets import *
-
 
 ELL = unreal.EditorLevelLibrary()
 EAL = unreal.EditorAssetLibrary()
@@ -32,7 +26,6 @@ class USDStageHandler:
 
             string address for the location of the USD file to be loaded
 
-
         """
 
         valid_extensions = [".usd", ".usda", ".usdc", ".usdz"]
@@ -40,9 +33,13 @@ class USDStageHandler:
         if not any(file_path.endswith(ext) for ext in valid_extensions):
             raise ValueError("Invalid USD file path")
 
-        cls.stage = Usd.Stage.Open(file_path)
-        if not cls.stage:
-            raise RuntimeError("Failed to open USD stage")
+        try:
+            stage = Usd.Stage.Open(file_path)
+
+            cls.stage = stage
+        except Exception as e:
+            print(f"Failed to open USD stage: {e}")
+            cls.stage = None
 
 
 
@@ -151,7 +148,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
     def browse_file(self) -> None:
         """
-        Open a file dialog to browse and select a USD file
+        Open a file dialog to browse and select a USD file.
 
         The selected file path is displayed in the file path edit field,
         and the prims list is populated based on the selected file.
@@ -166,9 +163,11 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             self.populate_prims_list(file_path)
     
     def reload_prims_list(self):
-        """ Calls populate_prims_list on button press"""
+        """ Calls populate_prims_list on button press and updates the export type. """
         file_path = self.file_path_edit.text()
         self.populate_prims_list(file_path)
+
+        # set the export type to match the current prim type
         self.export_type_combo.setCurrentIndex(self.prim_type_combo.currentIndex())
 
     def populate_prims_list(self, file_path: str) -> None:
@@ -206,19 +205,23 @@ class USDAnimImportDialog(QtWidgets.QDialog):
 
     def usd_prim_extraction(self, stage: Usd.Stage, mesh_type: str, is_animated: bool) -> list[Sdf.Path]:
         """
-        Extract the USD Prim paths that contain time samples within any of their attributes
+        Retrieve the paths of USD Prims that match the specified type and filter criteria based on the presence of time samples.
 
         Parameters
         ----------
 
         stage : Usd.Stage
-            the USD stage to extract from
+            The USD stage to extract from
+        mesh_type : str
+            The type of prim to extract
+        is_animated : bool
+            Whether to only extract prims with animation or not
 
         Returns
         -------
 
         list
-            prim paths of animated objects
+            list of the prim_paths found
         
         """
         prim_paths = []
@@ -242,7 +245,7 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         return prim_paths
     
     def toggle_export_dir_edit(self):
-        """ Toggle whether to use default export directory or chosen"""
+        """ Toggle whether to use default export directory or chosen. """
 
         state = self.use_default_checkbox.isChecked()
         if state == 0:  
@@ -255,39 +258,32 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         self.toggle_individual_export()
 
     def toggle_individual_export(self):
-        """ Toggle whether to export individual prims or together"""
+        """ Toggle whether to export prim files individually or together. """
         state = self.individual_checkbox.isChecked()
         if state == 0:  
             self.file_name_edit.setEnabled(True)
         else: 
             self.file_name_edit.setEnabled(False)
 
-
-
     def select_export_directory(self):
-        """ Opens a file dialog to browse and select directory to export animated prim files to"""
+        """ Opens a file dialog to browse and select directory to export animated prim files to. """
 
         export_dir = QFileDialog.getExistingDirectory(self, "Select export Directory")
         if export_dir:
             self.export_dir_edit.setText(export_dir)
 
     def export_options(self):
-        """
-        Called from the button click event to set up export of selected animated prims
-        """
+        """ Called from the button click event to set up export of selected animated prims. """
         file_path = self.file_path_edit.text()
-
         stage = USDStageHandler.stage        
-
         selected_paths = self.prim_list_widget.selectedItems()
-
         anim_obj_paths = []
 
+        # add selected prims to list to be exported
         for path in selected_paths:
             anim_obj_paths.append(self.prim_strings[path.text()])
 
         export_type = self.export_type_combo.currentText()
-
         export_individual = self.individual_checkbox.isChecked()
 
         if not self.use_default_checkbox.isChecked():
@@ -304,22 +300,28 @@ class USDAnimImportDialog(QtWidgets.QDialog):
     # update doc string
     def export_anim_prims(self, file_path: str, stage: Usd.Stage, anim_obj_paths: list[Sdf.Path], export_type: str, export_individual: bool, target_directory:str ="", file_name: str="untitled") -> None:
         """
-        Export animation prims to USD files
+        Export animation prims to USD files.
 
         Parameters
         ----------
-            file_path : str 
-                The original USD file path.
-            stage : Usd.Stage
-                The USD stage containing animation prims
-            anim_obj_paths : list[Sdf.Path]
-                List of Sdf.Path objects representing animation prims
-            target_directory : str, optional
-                The target directory for exporting USD files. Defaults to ""
+        file_path : str 
+            The original USD file path.
+        stage : Usd.Stage
+            The USD stage containing animation prims
+        anim_obj_paths : list[Sdf.Path]
+            List of Sdf.Path objects representing animation prims
+        export_type : str
+            The type to export the prim as
+        export_individual : bool
+            Determines whether to export individual usd prim files or have group them into one
+        target_directory : str, optional
+            The target directory for exporting USD files. Defaults to ""
+        file_name : str, optional
+            The name of the usd file if exporting as a group. Defaults to "untitled"
 
         Returns
         -------
-            None
+        None
         """
         if export_individual:
             for prim_path in anim_obj_paths :
@@ -340,13 +342,25 @@ class USDAnimImportDialog(QtWidgets.QDialog):
             target_directory = ""
 
     def create_temp_stage(self, stage: Usd.Stage) -> Usd.Stage:
-        # create temporary stage with anim prim path as default
+        """
+        Creates a temporary USD stage with a default animation prim.
+
+        Parameters
+        ----------
+        stage : Usd.Stage 
+            The original USD stage.
+
+        Returns
+        -------
+        Usd.Stage
+            The temporary USD stage to add to and export
+        """
 
         temp_stage = Usd.Stage.CreateInMemory()
         default_prim = UsdGeom.Xform.Define(temp_stage, Sdf.Path("/default"))
         temp_stage.SetDefaultPrim(default_prim.GetPrim())
         
-        # set basic stage metadata
+        # set basic stage metadata for animation
 
         temp_stage.SetStartTimeCode(stage.GetStartTimeCode())
         temp_stage.SetEndTimeCode(stage.GetEndTimeCode())
@@ -356,6 +370,28 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         return temp_stage
 
     def add_prim_to_stage(self, stage: Usd.Stage, temp_stage: Usd.Stage, file_path: str, export_type: str, prim_path: Sdf.Path) -> Usd.Stage:
+        """
+        Add a prim to the stage.
+
+        Parameters
+        ----------
+        stage : Usd.Stage
+            The original USD stage
+        temp_stage : Usd.Stage
+            The temporary USD stage
+        file_path : str
+            The file path of the original USD file
+        export_type : str
+            The type of prim to export
+        prim_path : Sdf.Path
+            The path of the prim to add
+
+        Returns
+        -------
+        Usd.Stage
+            The modified USD stage to export
+        """
+        
         prim_name = stage.GetPrimAtPath(prim_path).GetName()
 
         new_path = "/default/" + prim_name
@@ -372,6 +408,22 @@ class USDAnimImportDialog(QtWidgets.QDialog):
         return temp_stage
 
     def export_stage(self, temp_stage: Usd.Stage, target_directory: str, file_name: str):
+        """
+        Export the temporary stage with its additions to a USD file
+
+        Parameters
+        ----------
+        temp_stage : Usd.Stage
+            The temporary USD stage to export
+        target_directory : str
+            The target directory for exporting the USD file
+        file_name : str
+            The name of the exported USD file
+
+        Returns
+        -------
+        None
+        """
         if target_directory == "":
             project_path = Path(unreal.Paths.get_project_file_path()).parent
             target_directory = project_path / "Content" / "usd_exports" / file_name
