@@ -31,7 +31,7 @@ After this, restart the project again, and a menu option will be present at the 
 
 ## How to use
 
-With the installation complete, you can access the tools straight from the menu. In the menu there will be two options, USD Prim Importer and USD Animation Player.
+With the installation complete, you can access the tools straight from the menu. In the menu there will be two options, USD Prim Importer and USD Animation Player. A video demonstrating to tool can be found [here](https://www.youtube.com/watch?v=yWvuUMFs3TI&ab_channel=JackPurkiss).
 
 ### USD Prim Importer
 
@@ -58,7 +58,7 @@ This will export the new USD files to the specified location and automatically i
 
 This tool is used to easily access the animations of the USDStageActors from a button click rather than going to their object and finding their level sequence. The option to export multiple prims to the same file in the USD Prim Importer provides the option to choose to play multiple animations at the same time.
 
-These tools can optionally be run by using the python editor at the bottom and running `py "your\\path\\to\\src\\ue_importer_gui.py"` or `py "your\\path\\to\\src\\ue_usd_sequence.py"`
+These tools can optionally be run by using the python editor at the bottom and running `py "your\\path\\to\\src\\ue_importer_gui.py"` or `py "your\\path\\to\\src\\ue_usd_sequence.py"`.
 
 ## Testing
 
